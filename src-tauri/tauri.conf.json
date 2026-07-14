@@ -75,7 +75,7 @@
         "installerHooks": "windows/nsis-hooks.nsh"
       },
       "wix": {
-        "language": ["zh-CN", "en-US"]
+        "language": "zh-CN"
       }
     }
   }
