@@ -1,0 +1,16 @@
+node_modules/
+.pnpm-store/
+dist/
+Release/
+coverage/
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+src-tauri/target/
+src-tauri/gen/
+*.db
+*.db-shm
+*.db-wal
+*.sjbackup

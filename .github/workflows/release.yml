@@ -1,0 +1,59 @@
+name: Release Windows
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable-2026-05-28
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm version:check
+      - name: Build and create GitHub Release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 闪记 ${{ github.ref_name }}
+          releaseBody: 请查看 CHANGELOG.md。当前 Windows 安装包未签名，可能触发 SmartScreen 提示。
+          releaseDraft: false
+          prerelease: false
+          args: --target x86_64-pc-windows-msvc --bundles msi,nsis
+      - name: Assemble complete Release directory
+        shell: pwsh
+        run: ./scripts/package-windows-release.ps1
+      - name: Upload complete Release directory
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          Get-ChildItem Release -Recurse -File | ForEach-Object {
+            gh release upload "${{ github.ref_name }}" $_.FullName --clobber
+            if ($LASTEXITCODE -ne 0) { throw "上传失败：$($_.Name)" }
+          }
+      - name: Upload Release directory as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shanji-windows-x64-Release
+          if-no-files-found: error
+          path: Release
