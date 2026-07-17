@@ -5,10 +5,15 @@ param(
 $ErrorActionPreference = "Stop"
 
 $config = Get-Content "src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json
+$package = Get-Content "package.json" -Raw | ConvertFrom-Json
 $version = $config.version
 $productName = $config.productName
+$artifactName = [System.Globalization.CultureInfo]::InvariantCulture.TextInfo.ToTitleCase([string]$package.name)
+if ([string]::IsNullOrWhiteSpace($artifactName) -or $artifactName -notmatch "^[A-Za-z0-9._-]+$") {
+  throw "package.json name 必须能转换为 Windows/GitHub 安全的 ASCII 产物名"
+}
 $releaseRoot = Join-Path (Get-Location) "Release"
-$releaseName = "$productName-$version-windows-x64"
+$releaseName = "$artifactName-$version-windows-x64"
 $releaseDirectory = Join-Path $releaseRoot $releaseName
 
 New-Item -ItemType Directory -Force -Path $releaseDirectory | Out-Null
@@ -21,9 +26,9 @@ if (-not $msi) { throw "未找到 Windows MSI 产物" }
 if (-not $setup) { throw "未找到 Windows NSIS Setup.exe 产物" }
 if (-not $executable) { throw "未找到 Windows 独立 exe 产物" }
 
-$msiDestination = Join-Path $releaseDirectory "$productName-$version-x64.msi"
-$setupDestination = Join-Path $releaseDirectory "$productName-$version-x64-Setup.exe"
-$executableDestination = Join-Path $releaseDirectory "$productName-$version-x64.exe"
+$msiDestination = Join-Path $releaseDirectory "$artifactName-$version-x64.msi"
+$setupDestination = Join-Path $releaseDirectory "$artifactName-$version-x64-Setup.exe"
+$executableDestination = Join-Path $releaseDirectory "$artifactName-$version-x64.exe"
 
 Copy-Item -LiteralPath $msi.FullName -Destination $msiDestination -Force
 Copy-Item -LiteralPath $setup.FullName -Destination $setupDestination -Force
@@ -32,16 +37,16 @@ Copy-Item -LiteralPath $executable.FullName -Destination $executableDestination 
 $instructions = @"
 $productName $version（Windows 10/11 x64）
 
-推荐安装：双击 $productName-$version-x64-Setup.exe。
+推荐安装：双击 $artifactName-$version-x64-Setup.exe。
 安装器包含 WebView2 离线运行时，不需要安装 Node.js、Python、Rust 或其他开发环境。
 安装后会创建桌面快捷方式和开始菜单入口。
 
-备用安装：$productName-$version-x64.msi。
-独立程序：$productName-$version-x64.exe，数据仍保存在当前用户 AppData；它不是数据随程序移动的完全便携版。
+备用安装：$artifactName-$version-x64.msi。
+独立程序：$artifactName-$version-x64.exe，数据仍保存在当前用户 AppData；它不是数据随程序移动的完全便携版。
 
 当前版本未进行商业代码签名，Windows SmartScreen 可能显示未知发布者提示。
 "@
-Set-Content -LiteralPath (Join-Path $releaseDirectory "使用说明.txt") -Value $instructions -Encoding utf8
+Set-Content -LiteralPath (Join-Path $releaseDirectory "README-zh-CN.txt") -Value $instructions -Encoding utf8
 
 $checksumFiles = Get-ChildItem $releaseDirectory -File
 $checksums = $checksumFiles | ForEach-Object {

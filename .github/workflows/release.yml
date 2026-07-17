@@ -51,6 +51,23 @@ jobs:
             gh release upload "${{ github.ref_name }}" $_.FullName --clobber
             if ($LASTEXITCODE -ne 0) { throw "上传失败：$($_.Name)" }
           }
+      - name: Normalize raw Tauri asset names
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version = (Get-Content "src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json).version
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/${{ github.ref_name }}" | ConvertFrom-Json
+          $renames = @{
+            "_${version}_x64-setup.exe" = "raw-tauri-${version}-x64-setup.exe"
+            "_${version}_x64_zh-CN.msi" = "raw-tauri-${version}-x64-zh-CN.msi"
+          }
+          foreach ($asset in $release.assets) {
+            if ($renames.ContainsKey($asset.name)) {
+              gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/assets/$($asset.id)" -f "name=$($renames[$asset.name])" | Out-Null
+              if ($LASTEXITCODE -ne 0) { throw "重命名失败：$($asset.name)" }
+            }
+          }
       - name: Upload Release directory as workflow artifact
         uses: actions/upload-artifact@v4
         with:
