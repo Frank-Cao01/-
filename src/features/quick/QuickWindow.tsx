@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
-import { Expand, LoaderCircle, Pin, PinOff, Plus, Save, X, Zap } from "lucide-react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { Expand, GripHorizontal, LoaderCircle, Pin, PinOff, Plus, Save, X, Zap } from "lucide-react";
 import { api } from "../../services/api";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { emptyNote, type Note, type Priority, type TodoStatus } from "../../types";
@@ -17,6 +18,14 @@ export function QuickWindow() {
       }
       setReady(true);
     })();
+  }, []);
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void listen("settings:changed", () => {
+      // 主窗口保存主题、固定状态等设置后，快速窗口立即同步。
+      void useSettingsStore.getState().load();
+    }).then((dispose) => { unlisten = dispose; });
+    return () => unlisten?.();
   }, []);
 
   if (!ready) return <div className="quick-shell"><div className="quick-card"><div className="empty-state"><LoaderCircle className="animate-spin" />正在准备本地草稿…</div></div></div>;
@@ -103,23 +112,45 @@ function QuickEditor({ note, setNote }: { note: Note; setNote: (note: Note) => v
     }
   };
 
+  const startWindowDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || !event.isPrimary) return;
+    if ((event.target as HTMLElement).closest("button")) return;
+    event.preventDefault();
+    // 无边框窗口必须显式请求原生拖动；能力配置中同时授予 start_dragging。
+    void getCurrentWindow().startDragging().catch(() => {
+      contentRef.current?.focus();
+    });
+  };
+
   return (
     <div className="quick-shell">
       <div className="quick-card">
-        <header className="quick-header" data-tauri-drag-region title="按住此处可移动窗口">
-          <Zap size={15} color="var(--color-accent)" fill="currentColor" />
-          <span className="quick-title" data-tauri-drag-region>快速记录</span>
-          <button
-            className={`icon-button ${settingsStore.settings.quickPinned ? "active" : ""}`}
-            onClick={togglePinned}
-            title={settingsStore.settings.quickPinned ? "取消固定窗口" : "固定窗口位置"}
-            aria-pressed={settingsStore.settings.quickPinned}
+        <header
+          className="quick-header"
+          onPointerDown={startWindowDrag}
+          title="按住顶部栏空白处可移动窗口"
+        >
+          <div
+            className="quick-drag-handle"
+            aria-label="拖动快速记录窗口"
           >
-            {settingsStore.settings.quickPinned ? <PinOff size={16} /> : <Pin size={16} />}
-          </button>
-          <button className="icon-button" onClick={createNew} title="快速新建"><Plus size={17} /></button>
-          <button className="icon-button" onClick={openMain} title="展开主界面"><Expand size={16} /></button>
-          <button className="icon-button" onClick={hideAfterSave} title="保存并隐藏"><X size={17} /></button>
+            <span className="quick-brand-icon"><Zap size={14} fill="currentColor" /></span>
+            <span className="quick-title">快速记录</span>
+            <GripHorizontal className="quick-drag-indicator" size={17} aria-hidden="true" />
+          </div>
+          <div className="quick-window-actions">
+            <button
+              className={`icon-button ${settingsStore.settings.quickPinned ? "active" : ""}`}
+              onClick={togglePinned}
+              title={settingsStore.settings.quickPinned ? "取消固定窗口" : "固定窗口位置"}
+              aria-pressed={settingsStore.settings.quickPinned}
+            >
+              {settingsStore.settings.quickPinned ? <PinOff size={16} /> : <Pin size={16} />}
+            </button>
+            <button className="icon-button" onClick={createNew} title="快速新建"><Plus size={17} /></button>
+            <button className="icon-button" onClick={openMain} title="展开主界面"><Expand size={16} /></button>
+            <button className="icon-button" onClick={hideAfterSave} title="保存并隐藏"><X size={17} /></button>
+          </div>
         </header>
         <div className="quick-form">
           {error && <div className="error-banner">保存失败，窗口已保持打开：{error}</div>}

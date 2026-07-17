@@ -1,6 +1,6 @@
 [package]
 name = "shanji"
-version = "0.1.0"
+version = "0.1.1"
 description = "一款轻量、快捷、本地优先的桌面备忘录"
 authors = ["Shanji"]
 edition = "2021"

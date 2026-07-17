@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { ArrowLeft, Database, Download, FolderArchive, RotateCcw, Upload } from "lucide-react";
+import { ArrowLeft, Database, Download, FolderArchive, Monitor, Moon, RotateCcw, Sun, Upload } from "lucide-react";
 import { APP_VERSION, PRODUCT_NAME } from "../../config/app";
 import { api } from "../../services/api";
 import { useNotesStore } from "../../stores/notesStore";
-import { useSettingsStore } from "../../stores/settingsStore";
+import { applyTheme, useSettingsStore } from "../../stores/settingsStore";
 import { useUiStore } from "../../stores/uiStore";
 import type { AppSettings } from "../../types";
 
@@ -18,6 +18,8 @@ export function SettingsPage() {
 
   useEffect(() => setForm(store.settings), [store.settings]);
   useEffect(() => { void api.databaseInfo().then(setDatabaseInfo); }, []);
+  useEffect(() => { applyTheme(form.theme); }, [form.theme]);
+  useEffect(() => () => applyTheme(useSettingsStore.getState().settings.theme), []);
 
   const patch = (value: Partial<AppSettings>) => setForm((current) => ({ ...current, ...value }));
   const persist = async () => {
@@ -79,7 +81,27 @@ export function SettingsPage() {
 
         <div className="settings-card">
           <h2>通用</h2>
-          <div className="settings-row"><div className="settings-copy"><strong>主题</strong><p>默认使用浅色，也可以跟随系统。</p></div><select className="select" style={{ width: 150 }} value={form.theme} onChange={(event) => patch({ theme: event.target.value as AppSettings["theme"] })}><option value="light">浅色</option><option value="dark">深色</option><option value="system">跟随系统</option></select></div>
+          <div className="settings-row theme-settings-row">
+            <div className="settings-copy"><strong>外观主题</strong><p>选择后立即预览，保存设置后会应用到主窗口和快速记录窗口。</p></div>
+            <div className="theme-picker" role="group" aria-label="外观主题">
+              {([
+                ["light", "浅色", Sun],
+                ["dark", "深色", Moon],
+                ["system", "跟随系统", Monitor],
+              ] as const).map(([value, label, Icon]) => (
+                <button
+                  type="button"
+                  className={`theme-option ${form.theme === value ? "active" : ""}`}
+                  key={value}
+                  onClick={() => patch({ theme: value })}
+                  aria-pressed={form.theme === value}
+                >
+                  <span className="theme-option-preview" data-preview-theme={value}><Icon size={16} /></span>
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="settings-row"><div className="settings-copy"><strong>关闭主窗口</strong><p>选择隐藏到托盘或真正退出程序。</p></div><select className="select" style={{ width: 170 }} value={form.closeBehavior} onChange={(event) => patch({ closeBehavior: event.target.value as AppSettings["closeBehavior"] })}><option value="tray">最小化到托盘</option><option value="quit">退出软件</option></select></div>
           <div className="settings-row"><div className="settings-copy"><strong>开机启动</strong><p>开机后在后台启动并驻留托盘。</p></div><input className="switch" type="checkbox" checked={form.autostart} onChange={(event) => patch({ autostart: event.target.checked })} /></div>
         </div>
