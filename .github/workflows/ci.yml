@@ -63,7 +63,7 @@ jobs:
       - name: Verify Release deliverables
         shell: pwsh
         run: |
-          $required = @("*.msi", "*-Setup.exe", "*-x64.exe", "SHA256SUMS.txt", "使用说明.txt")
+          $required = @("*.msi", "*-Setup.exe", "*-x64.exe", "SHA256SUMS.txt", "README-zh-CN.txt")
           foreach ($pattern in $required) {
             if (-not (Get-ChildItem Release -Recurse -File -Filter $pattern)) {
               throw "Release 目录缺少产物：$pattern"
